@@ -1,7 +1,9 @@
 import ast
 import json
 import re
-from typing import List
+import tokenize
+from io import StringIO
+from typing import List, Optional
 
 
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
@@ -12,6 +14,7 @@ _PYTHON_INTENT_RE = re.compile(
     re.MULTILINE,
 )
 _CJK_TEXT_RE = re.compile(r"[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]")
+_MESSAGE_INTENT_RE = re.compile(r"\b(msg\s*=|send_msg_text\s*\(|send_plain_text_response\s*\()", re.MULTILINE)
 DEFAULT_MAX_MESSAGE_CHARS = 1200
 
 
@@ -42,6 +45,40 @@ def is_plain_text_fallback_candidate(code_content: str, raw_content: str = "") -
         return False
 
     return bool(_CJK_TEXT_RE.search(code))
+
+
+def extract_message_text_from_malformed_code(code_content: str) -> Optional[str]:
+    """Recover message text from malformed NA-style message-sending code."""
+    code = (code_content or "").strip()
+    if not code or not _MESSAGE_INTENT_RE.search(code):
+        return None
+
+    try:
+        ast.parse(code)
+    except SyntaxError:
+        pass
+    else:
+        return None
+
+    fragments: List[str] = []
+    try:
+        tokens = tokenize.generate_tokens(StringIO(code).readline)
+        for token in tokens:
+            if token.type != tokenize.STRING:
+                continue
+            try:
+                value = ast.literal_eval(token.string)
+            except (SyntaxError, ValueError):
+                continue
+            if isinstance(value, str):
+                fragments.append(value)
+    except tokenize.TokenError:
+        pass
+
+    message_text = "".join(fragments).strip()
+    if not message_text or not _CJK_TEXT_RE.search(message_text):
+        return None
+    return message_text
 
 
 def _split_for_string_literals(message_text: str) -> List[str]:

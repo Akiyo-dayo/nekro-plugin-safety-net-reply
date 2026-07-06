@@ -5,6 +5,7 @@ import sys
 try:
     from nekro_plugin_safety_net_reply.fallback import (
         build_fallback_code,
+        extract_message_text_from_malformed_code,
         is_plain_text_fallback_candidate,
         sanitize_plain_text,
         split_message_text,
@@ -13,6 +14,7 @@ except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from fallback import (  # type: ignore[no-redef]
         build_fallback_code,
+        extract_message_text_from_malformed_code,
         is_plain_text_fallback_candidate,
         sanitize_plain_text,
         split_message_text,
@@ -34,6 +36,17 @@ class SafetyNetFallbackTests(unittest.TestCase):
         code = 'send_msg_text(_ck, "你好"'
 
         self.assertFalse(is_plain_text_fallback_candidate(code, code))
+
+    def test_repairs_malformed_msg_assignment_with_message_text(self):
+        code = (
+            'msg = ("（睫毛颤了好几下，像是这个问题太重了）\\n\\n"\n'
+            '       "慢慢地，十字星瞳仁从朦胧中浮出来"\n'
+        )
+
+        self.assertEqual(
+            extract_message_text_from_malformed_code(code),
+            "（睫毛颤了好几下，像是这个问题太重了）\n\n慢慢地，十字星瞳仁从朦胧中浮出来",
+        )
 
     def test_removes_think_block_before_sending(self):
         raw = "<think>内部推理</think>\n你好呀。"

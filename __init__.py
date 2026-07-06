@@ -4,6 +4,7 @@ from typing import Any
 
 from .fallback import (
     build_fallback_code,
+    extract_message_text_from_malformed_code,
     is_plain_text_fallback_candidate,
     sanitize_plain_text,
     split_message_text,
@@ -22,7 +23,7 @@ else:
         name="安全网回复",
         module_name="nekro_plugin_safety_net_reply",
         description="当模型误把自然语言正文作为沙盒代码返回时，自动改写为预制消息发送工具调用，避免 SyntaxError 后反复迭代失败。",
-        version="0.2.0",
+        version="0.3.0",
         author="Akiyo",
         url="https://github.com/Akiyo-dayo/nekro-plugin-safety-net-reply",
         support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
@@ -61,11 +62,20 @@ else:
         if code_run_data is None and args:
             code_run_data = args[0]
 
-        if code_run_data and is_plain_text_fallback_candidate(
-            code_run_data.code_content,
-            code_run_data.raw_content,
+        message_text = None
+        if code_run_data:
+            message_text = extract_message_text_from_malformed_code(code_run_data.code_content)
+        if (
+            code_run_data
+            and message_text is None
+            and is_plain_text_fallback_candidate(
+                code_run_data.code_content,
+                code_run_data.raw_content,
+            )
         ):
             message_text = sanitize_plain_text(code_run_data.raw_content, code_run_data.code_content)
+
+        if code_run_data and message_text is not None:
             patched_data = ParsedCodeRunData(
                 raw_content=code_run_data.raw_content,
                 code_content=build_fallback_code(message_text),
