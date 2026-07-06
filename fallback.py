@@ -21,6 +21,9 @@ _MESSAGE_INTENT_RE = re.compile(
 DEFAULT_MAX_MESSAGE_CHARS = 1200
 DEFAULT_TAKEOVER_NOTICE_TEXT = "上游返回格式有误，{persona}已接管本次输出，共 {chunks} 段~"
 DEFAULT_NOTICE_PERSONA_NAME = "安全网回复"
+_LEGACY_DEFAULT_TAKEOVER_NOTICE_TEXTS = {
+    "（安全网回复已接管本次输出，共 {chunks} 段）",
+}
 
 
 def sanitize_plain_text(raw_content: str, code_content: str) -> str:
@@ -141,6 +144,8 @@ def format_takeover_notice(
     notice = (notice_text or "").strip()
     if not notice:
         return ""
+    if notice in _LEGACY_DEFAULT_TAKEOVER_NOTICE_TEXTS:
+        notice = DEFAULT_TAKEOVER_NOTICE_TEXT
     persona = (persona_name or "").strip() or DEFAULT_NOTICE_PERSONA_NAME
     try:
         return notice.format(chunks=chunk_count, persona=persona)

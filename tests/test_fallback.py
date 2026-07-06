@@ -117,6 +117,12 @@ class SafetyNetFallbackTests(unittest.TestCase):
             "上游返回格式有误，小爱已接管本次输出，共 2 段~",
         )
 
+    def test_takeover_notice_upgrades_persisted_old_default(self):
+        self.assertEqual(
+            format_takeover_notice(True, "（安全网回复已接管本次输出，共 {chunks} 段）", 2, persona_name="小爱"),
+            "上游返回格式有误，小爱已接管本次输出，共 2 段~",
+        )
+
     def test_takeover_notice_ignores_blank_text(self):
         self.assertEqual(format_takeover_notice(True, "   ", 1), "")
 
