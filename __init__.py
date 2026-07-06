@@ -4,18 +4,21 @@ from typing import Any
 
 from .fallback import (
     build_fallback_code,
+    DEFAULT_TAKEOVER_NOTICE_TEXT,
     extract_message_text_from_malformed_code,
+    format_takeover_notice,
     is_plain_text_fallback_candidate,
     sanitize_plain_text,
     split_message_text,
 )
 
 try:
-    from nekro_agent.api.plugin import NekroPlugin, SandboxMethodType
+    from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
     from nekro_agent.api.schemas import AgentCtx
     from nekro_agent.core import logger
     from nekro_agent.services.agent import run_agent
     from nekro_agent.services.agent.resolver import ParsedCodeRunData
+    from pydantic import Field
 except ImportError:
     plugin = None
 else:
@@ -23,13 +26,30 @@ else:
         name="安全网回复",
         module_name="nekro_plugin_safety_net_reply",
         description="当模型误把自然语言正文作为沙盒代码返回时，自动改写为预制消息发送工具调用，避免 SyntaxError 后反复迭代失败。",
-        version="0.3.1",
+        version="0.4.0",
         author="Akiyo",
         url="https://github.com/Akiyo-dayo/nekro-plugin-safety-net-reply",
         support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
         allow_sleep=False,
         sleep_brief="兜底处理模型纯文本回复，确保消息仍通过工具链发出。",
     )
+
+    @plugin.mount_config()
+    class SafetyNetReplyConfig(ConfigBase):
+        """安全网回复配置"""
+
+        SHOW_TAKEOVER_NOTICE: bool = Field(
+            default=False,
+            title="显示接管提示",
+            description="开启后，安全网成功接管并发送正文时，会在聊天中额外发送一条短提示作为证明。默认关闭，避免污染正常回复。",
+        )
+        TAKEOVER_NOTICE_TEXT: str = Field(
+            default=DEFAULT_TAKEOVER_NOTICE_TEXT,
+            title="接管提示文本",
+            description="接管提示内容。可使用 {chunks} 表示本次正文被分成的发送段数。",
+        )
+
+    config: SafetyNetReplyConfig = plugin.get_config(SafetyNetReplyConfig)
 
     _ORIGINAL_LIMITED_RUN_CODE = None
 
@@ -51,7 +71,13 @@ else:
         chunks = split_message_text(message_text)
         for chunk in chunks:
             await _ctx.ms.send_text(chat_key, chunk, _ctx)
-        return f"安全网回复已发送，共 {len(chunks)} 段"
+        notice = format_takeover_notice(config.SHOW_TAKEOVER_NOTICE, config.TAKEOVER_NOTICE_TEXT, len(chunks))
+        if notice:
+            await _ctx.ms.send_text(chat_key, notice, _ctx)
+        logger.info(
+            f"[安全网回复] 兜底发送完成，共 {len(chunks)} 段，接管提示{'已发送' if notice else '未开启'}"
+        )
+        return f"安全网回复已发送，共 {len(chunks)} 段，接管提示{'已发送' if notice else '未开启'}"
 
     async def _patched_limited_run_code(*args: Any, **kwargs: Any):
         original = _ORIGINAL_LIMITED_RUN_CODE

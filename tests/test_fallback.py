@@ -6,6 +6,7 @@ try:
     from nekro_plugin_safety_net_reply.fallback import (
         build_fallback_code,
         extract_message_text_from_malformed_code,
+        format_takeover_notice,
         is_plain_text_fallback_candidate,
         sanitize_plain_text,
         split_message_text,
@@ -15,6 +16,7 @@ except ModuleNotFoundError:
     from fallback import (  # type: ignore[no-redef]
         build_fallback_code,
         extract_message_text_from_malformed_code,
+        format_takeover_notice,
         is_plain_text_fallback_candidate,
         sanitize_plain_text,
         split_message_text,
@@ -97,6 +99,18 @@ class SafetyNetFallbackTests(unittest.TestCase):
         self.assertEqual("".join(chunks), text)
         self.assertTrue(all(len(chunk) <= 20 for chunk in chunks))
         self.assertGreater(len(chunks), 1)
+
+    def test_takeover_notice_is_empty_when_disabled(self):
+        self.assertEqual(format_takeover_notice(False, "安全网已接管", 2), "")
+
+    def test_takeover_notice_can_include_chunk_count_when_enabled(self):
+        self.assertEqual(
+            format_takeover_notice(True, "安全网已接管本次输出，共 {chunks} 段", 3),
+            "安全网已接管本次输出，共 3 段",
+        )
+
+    def test_takeover_notice_ignores_blank_text(self):
+        self.assertEqual(format_takeover_notice(True, "   ", 1), "")
 
 
 if __name__ == "__main__":
