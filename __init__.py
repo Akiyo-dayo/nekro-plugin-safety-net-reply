@@ -26,7 +26,7 @@ else:
         name="安全网回复",
         module_name="nekro_plugin_safety_net_reply",
         description="当模型误把自然语言正文作为沙盒代码返回时，自动改写为预制消息发送工具调用，避免 SyntaxError 后反复迭代失败。",
-        version="0.4.0",
+        version="0.4.1",
         author="Akiyo",
         url="https://github.com/Akiyo-dayo/nekro-plugin-safety-net-reply",
         support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
@@ -46,12 +46,31 @@ else:
         TAKEOVER_NOTICE_TEXT: str = Field(
             default=DEFAULT_TAKEOVER_NOTICE_TEXT,
             title="接管提示文本",
-            description="接管提示内容。可使用 {chunks} 表示本次正文被分成的发送段数。",
+            description="接管提示内容。可使用 {persona} 表示当前频道人设名称，使用 {chunks} 表示本次正文被分成的发送段数。",
         )
 
     config: SafetyNetReplyConfig = plugin.get_config(SafetyNetReplyConfig)
 
     _ORIGINAL_LIMITED_RUN_CODE = None
+
+    async def _get_current_preset_name(_ctx: AgentCtx, chat_key: str) -> str:
+        try:
+            db_chat_channel = _ctx.db_chat_channel
+            if db_chat_channel is None:
+                from nekro_agent.models.db_chat_channel import DBChatChannel
+
+                db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+            if db_chat_channel is None:
+                return "安全网回复"
+            preset = await db_chat_channel.get_preset()
+            return (
+                getattr(preset, "name", None)
+                or getattr(preset, "title", None)
+                or "安全网回复"
+            )
+        except Exception as exc:
+            logger.warning(f"[安全网回复] 获取当前频道人设名称失败，将使用默认接管名称: {exc}")
+            return "安全网回复"
 
     @plugin.mount_sandbox_method(
         SandboxMethodType.TOOL,
@@ -71,7 +90,13 @@ else:
         chunks = split_message_text(message_text)
         for chunk in chunks:
             await _ctx.ms.send_text(chat_key, chunk, _ctx)
-        notice = format_takeover_notice(config.SHOW_TAKEOVER_NOTICE, config.TAKEOVER_NOTICE_TEXT, len(chunks))
+        persona_name = await _get_current_preset_name(_ctx, chat_key) if config.SHOW_TAKEOVER_NOTICE else "安全网回复"
+        notice = format_takeover_notice(
+            config.SHOW_TAKEOVER_NOTICE,
+            config.TAKEOVER_NOTICE_TEXT,
+            len(chunks),
+            persona_name=persona_name,
+        )
         if notice:
             await _ctx.ms.send_text(chat_key, notice, _ctx)
         logger.info(

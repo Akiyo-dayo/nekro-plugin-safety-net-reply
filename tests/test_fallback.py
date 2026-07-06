@@ -4,6 +4,7 @@ import sys
 
 try:
     from nekro_plugin_safety_net_reply.fallback import (
+        DEFAULT_TAKEOVER_NOTICE_TEXT,
         build_fallback_code,
         extract_message_text_from_malformed_code,
         format_takeover_notice,
@@ -14,6 +15,7 @@ try:
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from fallback import (  # type: ignore[no-redef]
+        DEFAULT_TAKEOVER_NOTICE_TEXT,
         build_fallback_code,
         extract_message_text_from_malformed_code,
         format_takeover_notice,
@@ -107,6 +109,12 @@ class SafetyNetFallbackTests(unittest.TestCase):
         self.assertEqual(
             format_takeover_notice(True, "安全网已接管本次输出，共 {chunks} 段", 3),
             "安全网已接管本次输出，共 3 段",
+        )
+
+    def test_takeover_notice_can_include_persona_name(self):
+        self.assertEqual(
+            format_takeover_notice(True, DEFAULT_TAKEOVER_NOTICE_TEXT, 2, persona_name="小爱"),
+            "上游返回格式有误，小爱已接管本次输出，共 2 段~",
         )
 
     def test_takeover_notice_ignores_blank_text(self):

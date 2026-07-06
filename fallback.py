@@ -19,7 +19,8 @@ _MESSAGE_INTENT_RE = re.compile(
     re.MULTILINE,
 )
 DEFAULT_MAX_MESSAGE_CHARS = 1200
-DEFAULT_TAKEOVER_NOTICE_TEXT = "（安全网回复已接管本次输出，共 {chunks} 段）"
+DEFAULT_TAKEOVER_NOTICE_TEXT = "上游返回格式有误，{persona}已接管本次输出，共 {chunks} 段~"
+DEFAULT_NOTICE_PERSONA_NAME = "安全网回复"
 
 
 def sanitize_plain_text(raw_content: str, code_content: str) -> str:
@@ -128,14 +129,20 @@ def split_message_text(message_text: str, max_chars: int = DEFAULT_MAX_MESSAGE_C
     return chunks
 
 
-def format_takeover_notice(enabled: bool, notice_text: str, chunk_count: int) -> str:
+def format_takeover_notice(
+    enabled: bool,
+    notice_text: str,
+    chunk_count: int,
+    persona_name: str = DEFAULT_NOTICE_PERSONA_NAME,
+) -> str:
     """Build the optional chat-visible takeover proof notice."""
     if not enabled:
         return ""
     notice = (notice_text or "").strip()
     if not notice:
         return ""
+    persona = (persona_name or "").strip() or DEFAULT_NOTICE_PERSONA_NAME
     try:
-        return notice.format(chunks=chunk_count)
+        return notice.format(chunks=chunk_count, persona=persona)
     except (IndexError, KeyError, ValueError):
         return notice
