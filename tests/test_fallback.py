@@ -48,6 +48,23 @@ class SafetyNetFallbackTests(unittest.TestCase):
             "（睫毛颤了好几下，像是这个问题太重了）\n\n慢慢地，十字星瞳仁从朦胧中浮出来",
         )
 
+    def test_repairs_malformed_lines_append_message(self):
+        code = (
+            'lines = []\n'
+            'lines.append("（说到"幸福"两个字的时候，嘴角弯了弯）")\n'
+            'send_msg_text(_ck, "\\n".join(lines))\n'
+        )
+
+        self.assertEqual(
+            extract_message_text_from_malformed_code(code),
+            "（说到两个字的时候，嘴角弯了弯）",
+        )
+
+    def test_repairs_non_cjk_malformed_explicit_message_code(self):
+        code = 'msg = ("hello\\n\\n"\n       "world"\n'
+
+        self.assertEqual(extract_message_text_from_malformed_code(code), "hello\n\nworld")
+
     def test_removes_think_block_before_sending(self):
         raw = "<think>内部推理</think>\n你好呀。"
 

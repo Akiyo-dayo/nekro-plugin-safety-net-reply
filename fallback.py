@@ -14,7 +14,10 @@ _PYTHON_INTENT_RE = re.compile(
     re.MULTILINE,
 )
 _CJK_TEXT_RE = re.compile(r"[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]")
-_MESSAGE_INTENT_RE = re.compile(r"\b(msg\s*=|send_msg_text\s*\(|send_plain_text_response\s*\()", re.MULTILINE)
+_MESSAGE_INTENT_RE = re.compile(
+    r"\b(msg\s*=|lines\.append\s*\(|part\d+\s*=|send_msg_text\s*\(|send_plain_text_response\s*\()",
+    re.MULTILINE,
+)
 DEFAULT_MAX_MESSAGE_CHARS = 1200
 
 
@@ -76,7 +79,7 @@ def extract_message_text_from_malformed_code(code_content: str) -> Optional[str]
         pass
 
     message_text = "".join(fragments).strip()
-    if not message_text or not _CJK_TEXT_RE.search(message_text):
+    if not message_text:
         return None
     return message_text
 

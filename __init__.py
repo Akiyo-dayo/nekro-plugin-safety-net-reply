@@ -23,7 +23,7 @@ else:
         name="安全网回复",
         module_name="nekro_plugin_safety_net_reply",
         description="当模型误把自然语言正文作为沙盒代码返回时，自动改写为预制消息发送工具调用，避免 SyntaxError 后反复迭代失败。",
-        version="0.3.0",
+        version="0.3.1",
         author="Akiyo",
         url="https://github.com/Akiyo-dayo/nekro-plugin-safety-net-reply",
         support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
